@@ -37,7 +37,6 @@
 ###################################################################
 ## To do:
 ## - Allow logging to file
-## - Add readme.md
 ## - Add support for word and powerpoint
 ## - Modularise the file
 ##     Separate scanner and output
