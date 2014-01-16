@@ -1,10 +1,12 @@
 Credit Card Finder
 ==================
 
+A Powershell script for discovering clear text credit cards on a Windows machine. The script has the following features:
+
+![Output screenshot](./screenshot.png)
+
 Features
 --------
-
-A Powershell script for discovering clear text credit cards on a Windows machine. The script has the following features:
 
 - It searches all files recursively in the provided path
 - Credit card numbers are validated using the Luhn algorithm to reduce false positives
