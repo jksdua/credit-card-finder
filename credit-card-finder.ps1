@@ -63,6 +63,8 @@ param (
 )
 
 $REGEX = [regex]"(?im)(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
+$MAX_SIZE = 50mb
+$MAX_SIZE_STR = "50mb"
 $BATCH = 1000
 
 [long]$global:found = 0
@@ -175,79 +177,155 @@ function Get-ExcelContent($path) {
   $creditCards = $path = $null
 }
 
+# Checks if the user pressed Ctrl+C
+function gotInterrupt() {
+  if ([console]::KeyAvailable) {
+    $key = [system.console]::readkey($true)
+    return (($key.modifiers -band [consolemodifiers]"control") -and ($key.key -eq "C"))
+  }
+}
+
 ###################################################################
-## Recurses through the provided path running a check 
-## a valid Luhn number, and false otherwise.
+## Loops through the provided path running a scan on files and
+## returns subfolders found
 function Scan([string]$path) {
   ## reduce memory load if possible
   [gc]::collect()
 
+  [string[]]$todo = @()
+
   $fc = new-object -com scripting.filesystemobject
   $folder = $fc.getfolder($path)
 
-  try {
-    foreach ($i in $folder.files) {
-      try {
-        $path = [string]$i.path
+  foreach ($i in $folder.files) {
+    ## get out if user wants to exit
+    if (gotInterrupt) { throw "INTERRUPT" }
+
+    $path = [string]$i.path
+
+    try {
+      if ($i.Size -gt $MAX_SIZE) {
+        Write-Host -ForegroundColor YELLOW "Review $path manually. File size of $([Math]::Truncate($i.Size/1mb))mb is greater than the max allowed size of $MAX_SIZE_STR."
+        Write-Host ""
+      } else {
+        ## dev
+        #Write-Host "Processing file: " + $path
+
         if ($path -cmatch ".*\.(doc|ppt).{0,1}$") {
+          ## dev
+          #Write-Host "File type: office"
+
           Write-Host -ForegroundColor YELLOW "Review $path manually. Office files are currently not supported."
           Write-Host ""
-        } elseif ($path -cmatch ".*\.(xls|doc|ppt).{0,1}$") {
+        } elseif ($path -cmatch ".*\.(zip|tar|gz).{0,1}$") {
+          ## dev
+          #Write-Host "File type: zipped"
+
+          Write-Host -ForegroundColor YELLOW "Review $path manually. Zipped files are currently not supported."
+          Write-Host ""
+        } elseif ($path -cmatch ".*\.(xls|xlsx).{0,1}$") {
+          ## dev
+          #Write-Host "File type: excel"
+
           Get-ExcelContent -path $path
         } elseif ($path -cmatch "\.pdf$") {
+          ## dev
+          #Write-Host "File type: pdf"
+
           # pdf by default reads line by line
             # still need to run benchmarks to ensure memory is flushed after a line has been read
           Get-PdfContent $path | FindCreditCards -path $path
         } else {
+          ## dev
+          #Write-Host "File type: anything really"
+
           # using get content and batch reads the file in chunks
           # -ea stop added because open files still print an error to the console
-          #   see: http://stackoverflow.com/questions/3097785/powershell-ioexception-try-catch-isnt-working
-          Get-Content $path -ReadCount $batch -ea stop |
+          # see: http://stackoverflow.com/questions/3097785/powershell-ioexception-try-catch-isnt-working
+          Get-Content $path -ReadCount $BATCH -ea stop |
             FindCreditCards -path $path
         }
-      } catch [Exception] {
-        Write-Host -ForegroundColor RED ("Failed to process file " + $i.Path)
-        Write-Host ""
-        #$error[0]
       }
+    } catch [Exception] {
+      ## required since streamreader may throw this
+      if (!$($_.Exception.Message).CompareTo("INTERRUPT")) {
+        throw $_.Exception
+      }
+      Write-Host -ForegroundColor RED ("Failed to process file: " + $i.Path)
+      Write-Host ""
     }
-  } catch [Exception] {
-    Write-Host -ForegroundColor RED ("Failed to process folder " + $i)
-    Write-Host ""
   }
 
   try {
     foreach ($i in $folder.subfolders) {
-      Scan($i.path)
+      ## Dev
+      #Write-Host "Found additional folder: " + $i.path
+
+      $todo += $i.path
     }
   } catch [Exception] {
-    Write-Host -ForegroundColor RED ("Failed to process folder " + $i)
+    Write-Host -ForegroundColor RED ("Failed to queue folder for scanning: " + $i.path)
     Write-Host ""
+  }
+
+  return $todo
+}
+
+function ScanManager() {
+  [string[]]$todo = @()
+  [string]$next = $path
+
+  while ($next) {
+    try {
+      # add any additional folders identified to todo list
+      $todo += Scan($next)
+    } catch [Exception] {
+      if (!$($_.Exception.Message).CompareTo("INTERRUPT")) {
+        Write-Host "[Ctrl+C] Caught user interrupt"
+        throw $_.Exception
+      }
+      Write-Host -ForegroundColor RED ("Failed to scan folder: " + $next + ". Reason: " + $($_.Exception.Message))
+      Write-Host ""
+    }
+
+    # shift array to get next element
+    # http://blogs.msdn.com/b/powershell/archive/2007/02/06/powershell-tip-how-to-shift-arrays.aspx
+    $next, $todo = $todo
   }
 }
 
 ""
 "----====----==== Credit Card Finder ====----====----"
 ""
-"Remember to run me as an Administrator if scanning system directories such as Program Files."
+"Remember to run me as an Administrator if scanning system directories such as `Program Files` or `Windows`."
 ""
-Scan($path)
-
-## Dev
-#Scan("C:\Users\jsingh\Desktop")
-#Scan("C:\")
-""
-"Total found: " + $found
-
-## cleanup excel objects
-$global:Excel.quit()
-$global:Excel = $null
-[gc]::collect()
-[gc]::WaitForPendingFinalizers()
-# force clean since in some instances it does not shut properly
+## Catch Ctrl+C to garbage collect on exit
+## http://sushihangover.blogspot.com.au/2012/03/powershell-using-try-finally-block-to.html
 try {
-  ps excel | kill
-} catch [Exception] {}
+  [console]::TreatControlCAsInput = $true
+  ScanManager
+  ""
+  "Total found: " + $found
+  ""
+# ignore exception
+} catch [Exception] {
+} finally {
+  # No matter what the user did, reset the console to process Ctrl-C inputs 'normally'
+  [console]::TreatControlCAsInput = $false
+
+  Write-Host "Cleaning up..."
+  Write-Host ""
+  ## cleanup excel objects
+  $global:Excel.quit()
+  $global:Excel = $null
+  ## cleanup memory
+  [gc]::collect()
+  [gc]::WaitForPendingFinalizers()
+  # force clean since in some instances it does not shut properly
+  try {
+    ps excel | kill
+  } catch [Exception] {}
+}
 
 
 
