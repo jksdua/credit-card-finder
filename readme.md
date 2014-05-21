@@ -44,7 +44,7 @@ If this value is not set to `Unrestricted`, you will see an error similar to bel
 
 ![Execution policy error](./execution-policy-error.png)
 
-Change this setting temporarily to `Unrestricted` by running `Set-ExecutionPolicy Unrestricted -Scope CurrentUser`. ** You will need administrative privileges on the machine to do this. **
+Change this setting temporarily to `Unrestricted` by running `Set-ExecutionPolicy Unrestricted -Scope CurrentUser`. **You will need administrative privileges on the machine to do this.**
 
 Once the script has finished, make sure to run `Set-ExecutionPolicy <original value>` to reset it to its original state, otherwise you'll be lowering the security of your machine.
 
