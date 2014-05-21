@@ -63,6 +63,12 @@ Future
 Changelog
 ---------
 
+### 2014-05-21
+- Added note on Windows execution policy
+- Added support for relative directories (better usability)
+- Made PDF and Excel dlls optional so the script does not fail if these cannot be loaded. Prints a warning if these cannot be found on the system.
+	- In this case, these files are marked for manual review.
+
 ### 2014-03-14
 - Removed recursive function making the library stable enough to be used on larger systems without much memory usage
 - To stabilise the library, file size is now restricted to 25mb. 
