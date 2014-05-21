@@ -71,12 +71,22 @@ $BATCH = 1000
 $global:baseDir = split-path -parent $MyInvocation.MyCommand.Definition;
 
 ## Add support for pdf documents
-$PdfDll = Join-Path -path $baseDir -childPath "\lib\itextsharp-dll-core\itextsharp.dll"
-Add-Type -Path $PdfDll
+try {
+  $PdfDll = Join-Path -path $baseDir -childPath "\lib\itextsharp-dll-core\itextsharp.dll"
+  Add-Type -Path $PdfDll
+} catch [Exception] {
+  Write-Host -ForegroundColor RED ("Failed to load PDF dll. PDF files will be reported, review these manually.")
+  Write-Host ""
+}
 
 ## Add support for excel documents
-$global:Excel = New-Object -comobject Excel.Application
-$global:Excel.visible = $False
+try {
+  $global:Excel = New-Object -comobject Excel.Application
+  $global:Excel.visible = $False
+} catch [Exception] {
+  Write-Host -ForegroundColor RED ("Failed to load Excel dll. Excel files will be reported, review these manually.")
+  Write-Host ""
+}
 
 ####################################################################
 ## Returns true if the given array of digits represents 
@@ -294,11 +304,6 @@ function ScanManager() {
   }
 }
 
-""
-"----====----==== Credit Card Finder ====----====----"
-""
-"Remember to run me as an Administrator if scanning system directories such as `Program Files` or `Windows`."
-""
 ## Catch Ctrl+C to garbage collect on exit
 ## http://sushihangover.blogspot.com.au/2012/03/powershell-using-try-finally-block-to.html
 try {
@@ -315,9 +320,14 @@ try {
 
   Write-Host "Cleaning up..."
   Write-Host ""
-  ## cleanup excel objects
-  $global:Excel.quit()
-  $global:Excel = $null
+
+  # wrapped since excel is only optionally loaded if it exists on the system
+  try {
+    ## cleanup excel objects
+    $global:Excel.quit()
+    $global:Excel = $null
+  } catch [Exception] {}
+
   ## cleanup memory
   [gc]::collect()
   [gc]::WaitForPendingFinalizers()
