@@ -62,6 +62,15 @@ param (
   [string]$path = $(throw "-path is required")
 )
 
+""
+"----====----==== Credit Card Finder ====----====----"
+""
+"Remember to run me as an Administrator if scanning system directories such as `Program Files` or `Windows`."
+""
+
+## normalise path so both absolute and relative paths work
+$path = Resolve-Path($path)
+
 $REGEX = [regex]"(?im)(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
 $MAX_SIZE = 50mb
 $MAX_SIZE_STR = "50mb"
