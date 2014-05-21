@@ -21,13 +21,32 @@ Features
 Usage
 -----
 
-1. Clone the repository using `git clone https://github.com/jksdua/credit-card-finder`
-2. Enter the directory using `cd credit-card-finder`
-3. Execute the script using `.\credit-card-finder.ps1 -path C:\Users\user`
+1. Open a Powershell commandlet
+2. Clone the repository using `git clone https://github.com/jksdua/credit-card-finder`
+3. Enter the directory using `cd credit-card-finder`
+4. Ensure you have execution permissions by running `Get-ExecutionPolicy`. It **should be** `Unrestricted`. See [Execution Policy](#execution-policy) for more details.
+5. Execute the script using `.\credit-card-finder.ps1 -path C:\path\to\dir`. Path can be relative or absolute.
 
 > Run the script with Administrator privileges for best results.
 
 ![Output screenshot](./screenshot.png)
+
+Troubleshooting
+---------------
+
+### Execution Policy
+
+The script requires your user account to have execution permissions. This can be checked by running `Get-ExecutionPolicy`.
+
+![Execution policy status](./execution-policy-status.png)
+
+If this value is not set to `Unrestricted`, you will see an error similar to below:
+
+![Execution policy error](./execution-policy-error.png)
+
+Change this setting temporarily to `Unrestricted` by running `Set-ExecutionPolicy Unrestricted -Scope CurrentUser`. ** You will need administrative privileges on the machine to do this. **
+
+Once the script has finished, make sure to run `Set-ExecutionPolicy <original value>` to reset it to its original state, otherwise you'll be lowering the security of your machine.
 
 Issues
 ------
