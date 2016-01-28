@@ -67,7 +67,8 @@ param (
 ""
 "Remember to run me as an Administrator if scanning system directories such as `Program Files` or `Windows`."
 ""
-
+##Change -path to desired console output log destination  
+Start-Transcript -path E:\path\to\console\output -append
 ## normalise path so both absolute and relative paths work
 $path = Resolve-Path($path)
 
@@ -346,7 +347,8 @@ try {
   } catch [Exception] {}
 }
 
-
+## Stop logging of console output
+Stop-Transcript
 
 # Sample credit card data for testing
 #378282246310005
